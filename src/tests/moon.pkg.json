@@ -1,0 +1,8 @@
+{
+  "import": [
+    {  
+      "path": "penguins/gif_decoder/src/lib",  // 路径包含src/
+      "alias": "gif_decoder_lib"
+    }
+  ]
+}

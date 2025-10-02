@@ -1,0 +1,10 @@
+{
+  "is-main": true,
+  "import": [
+    {  
+      "path": "penguins/gif_decoder/src/lib"
+    },
+    "moonbitlang/x/fs",
+    "moonbitlang/x/sys"
+  ]
+}

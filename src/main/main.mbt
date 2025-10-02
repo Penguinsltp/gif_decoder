@@ -139,7 +139,7 @@ fn parse_gif_details(gif_data: Bytes) -> Unit {
 }
 
 ///| 分析文件结构
-fn analyze_file_structure(gif_data: Bytes, info: @penguins/gif_decoder/src/lib.GifInfo) -> Unit {
+fn analyze_file_structure(gif_data: Bytes, info: @gif_decoder_lib.GifInfo) -> Unit {
   // 计算各部分大小
   let header_size = 6  // GIF header
   let lsd_size = 7     // Logical Screen Descriptor
@@ -246,7 +246,7 @@ fn advanced_verification() -> Unit {
   // 测试最小有效GIF
   println("🔬 最小GIF文件测试:")
   let minimal_gif = create_minimal_gif()
-  match @penguins/gif_decoder/src/lib.decode_gif_complete(minimal_gif) {
+  match @gif_decoder_lib.decode_gif_complete(minimal_gif) {
     Ok(result) => println("   ✅ 成功: " + result)
     Err(msg) => println("   ❌ 失败: " + msg)
   }
@@ -254,7 +254,7 @@ fn advanced_verification() -> Unit {
   // 测试较大的GIF
   println("\n🔬 较大GIF文件测试:")
   let large_gif = create_large_test_gif()
-  match @penguins/gif_decoder/src/lib.parse_gif_info(large_gif) {
+  match @gif_decoder_lib.parse_gif_info(large_gif) {
     Ok(info) => {
       println("   ✅ 解析成功:")
       println("      - 尺寸: " + info.width.to_string() + "x" + info.height.to_string())
@@ -278,14 +278,14 @@ fn demo_gif_parsing() -> Unit {
   
   // 基础解码
   println("🔍 基础解码:")
-  match @penguins/gif_decoder/src/lib.decode_gif_basic(gif_data) {
+  match @gif_decoder_lib.decode_gif_basic(gif_data) {
     Ok(result) => println("   " + result)
     Err(msg) => println("   错误: " + msg)
   }
   
   // 详细信息解析
   println("\n📊 详细信息解析:")
-  match @penguins/gif_decoder/src/lib.parse_gif_info(gif_data) {
+  match @gif_decoder_lib.parse_gif_info(gif_data) {
     Ok(info) => {
       println("   版本: " + info.version)
       println("   尺寸: " + info.width.to_string() + "x" + info.height.to_string())
@@ -304,7 +304,7 @@ fn demo_gif_parsing() -> Unit {
   // 完整解码（包括图像信息）
   println("\n🖼️ 完整解码:")
   let complete_gif = create_complete_gif()
-  match @penguins/gif_decoder/src/lib.decode_gif_complete(complete_gif) {
+  match @gif_decoder_lib.decode_gif_complete(complete_gif) {
     Ok(result) => println("   " + result)
     Err(msg) => println("   错误: " + msg)
   }
@@ -319,7 +319,7 @@ fn test_basic_functions() -> Unit {
   println("🔧 位读取器测试:")
   let test_bytes = [0xAA, 0xBB, 0xCC]  // 10101010 11011011 11001100
   let data_list = @list.List::from_array(test_bytes.map(fn(x) { x.to_byte() }))
-  let bit_reader = @penguins/gif_decoder/src/lib.new(data_list)
+  let bit_reader = @gif_decoder_lib.new(data_list)
   
   let (reader1, bits1) = bit_reader.read_bits(4)
   match bits1 {
@@ -337,12 +337,12 @@ fn test_basic_functions() -> Unit {
   println("\n🔧 字节工具测试:")
   let b1 = (0x34).to_byte()
   let b2 = (0x12).to_byte()
-  let u16_value = @penguins/gif_decoder/src/lib.to_u16_le(b1, b2)
+  let u16_value = @gif_decoder_lib.to_u16_le(b1, b2)
   println("   小端序转换: 0x" + b1.to_int().to_string() + " 0x" + b2.to_int().to_string() + " -> " + u16_value.to_string())
   
   // 内置测试函数
   println("\n🧪 内置测试:")
-  let test_result = @penguins/gif_decoder/src/lib.test_gif_decoder()
+  let test_result = @gif_decoder_lib.test_gif_decoder()
   println("   " + test_result)
 }
 
@@ -354,7 +354,7 @@ fn demo_error_handling() -> Unit {
   // 测试无效文件
   println("🚫 无效文件测试:")
   let invalid_data = Bytes::from_array([1, 2, 3, 4, 5])
-  match @penguins/gif_decoder/src/lib.decode_gif_basic(invalid_data) {
+  match @gif_decoder_lib.decode_gif_basic(invalid_data) {
     Ok(result) => println("   意外成功: " + result)
     Err(msg) => println("   ✓ 正确检测到错误: " + msg)
   }
@@ -362,7 +362,7 @@ fn demo_error_handling() -> Unit {
   // 测试文件太小
   println("\n🚫 文件太小测试:")
   let tiny_data = Bytes::from_array([71, 73, 70])  // 只有 "GIF"
-  match @penguins/gif_decoder/src/lib.parse_gif_info(tiny_data) {
+  match @gif_decoder_lib.parse_gif_info(tiny_data) {
     Ok(_) => println("   意外成功")
     Err(msg) => println("   ✓ 正确检测到错误: " + msg)
   }
@@ -373,7 +373,7 @@ fn demo_error_handling() -> Unit {
     71, 73, 70, 57, 57, 97,  // "GIF99a" - 无效版本
     10, 0, 10, 0, 0, 0, 0
   ])
-  match @penguins/gif_decoder/src/lib.decode_gif_basic(wrong_version) {
+  match @gif_decoder_lib.decode_gif_basic(wrong_version) {
     Ok(_) => println("   意外成功")
     Err(msg) => println("   ✓ 正确检测到错误: " + msg)
   }
@@ -548,7 +548,7 @@ fn test_byte_order() -> Unit {
   
   for i = 0; i < test_cases.length(); i = i + 1 {
     let (b1, b2, expected) = test_cases[i]
-    let result = @penguins/gif_decoder/src/lib.to_u16_le(b1.to_byte(), b2.to_byte())
+    let result = @gif_decoder_lib.to_u16_le(b1.to_byte(), b2.to_byte())
     let status = if result == expected { "✅" } else { "❌" }
     println("      " + status + " 0x" + b1.to_string() + " 0x" + b2.to_string() + " -> " + result.to_string() + " (期望: " + expected.to_string() + ")")
   }

@@ -1,7 +1,7 @@
 {
   "import": [
     {  
-      "path": "penguins/gif_decoder/src/lib",
+      "path": "penguins/gif_decoder/src/lib", 
       "alias": "gif_decoder_lib"
     }
   ]

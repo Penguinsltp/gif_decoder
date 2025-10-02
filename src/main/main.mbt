@@ -83,8 +83,8 @@ fn parse_gif_details(gif_data: Bytes) -> Unit {
   // 基本信息解析
   println("📋 基本信息")
   println("--------------------------------------------------")
-  
-  match @penguins/gif_decoder/src/lib.parse_gif_info(gif_data) {
+
+  match @gif_decoder_lib.parse_gif_info(gif_data) {
     Ok(info) => {
       println("🏷️  文件版本: GIF " + info.version)
       println("📐 图像尺寸: " + info.width.to_string() + " × " + info.height.to_string() + " 像素")
@@ -161,7 +161,7 @@ fn analyze_file_structure(gif_data: Bytes, info: @penguins/gif_decoder/src/lib.G
   println("   - 数据段: " + data_section_size.to_string() + " 字节")
   
   // 尝试完整解码
-  match @penguins/gif_decoder/src/lib.decode_gif_complete(gif_data) {
+  match @gif_decoder_lib.decode_gif_complete(gif_data) {
     Ok(result) => {
       println("✅ 完整解码成功")
       println("   " + result)

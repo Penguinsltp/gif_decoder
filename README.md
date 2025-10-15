@@ -61,8 +61,4 @@ moon test
 
 * [ ] Add more test cases
 
-<<<<<<< HEAD
 * [ ] Provide WebAssembly (WASM) build
-=======
-* [ ] Provide WebAssembly (WASM) build
->>>>>>> 58dedb08d10c0e064376c4287101f6d89d42d7bf

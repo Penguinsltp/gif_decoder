@@ -71,30 +71,6 @@ pub fn save_previous_frame(self : Canvas) -> Unit {
   self.previous_frame = Some(saved)
 }
 
-///|
-/// 根据处置方法处理画布
-pub fn apply_disposal_method(
-  canvas : Canvas,
-  previous_canvas : Canvas?,
-  disposal_method : Int,
-) -> Canvas {
-  match disposal_method {
-    0 => canvas // 无 - 不指定处置方法
-    1 => canvas // 不处置 - 保留当前图像
-    2 => {
-      // 恢复到背景色 - 恢复到背景色
-      let bg_color = create_rgba_color(255, 255, 255, 255)
-      Canvas::new(canvas.width, canvas.height, bg_color)
-    }
-    3 =>
-      // 恢复到上一帧 - 恢复到上一帧
-      match previous_canvas {
-        Some(prev) => prev
-        None => canvas
-      }
-    _ => canvas // 未知方法，保持当前状态
-  }
-}
 
 ///|
 /// 处理图形控制扩展

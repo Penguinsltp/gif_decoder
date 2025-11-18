@@ -366,7 +366,7 @@ test "创建ImageData结构测试" {
     Ok((desc, _)) => {
       let image_data = @gif_decoder_lib.create_image_data(
         desc,
-        @list.of([b'T', b'E', b'S', b'T']),
+        @list.from_array([b'T', b'E', b'S', b'T']),
       )
       inspect(image_data.descriptor.left, content="5")
       inspect(image_data.descriptor.top, content="10")
@@ -548,7 +548,7 @@ test "测试通过解析获得的图像描述符功能" {
       inspect(desc.local_color_table_size, content="16")
 
       // 测试创建ImageData
-      let test_pixel_data = @list.of([b'P', b'I', b'X', b'E', b'L', b'S'])
+      let test_pixel_data = @list.from_array([b'P', b'I', b'X', b'E', b'L', b'S'])
       let image_data = @gif_decoder_lib.create_image_data(desc, test_pixel_data)
       inspect(image_data.descriptor.width, content="200")
       inspect(image_data.descriptor.height, content="150")

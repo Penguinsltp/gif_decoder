@@ -93,11 +93,11 @@ test "advanced transparency handles brightness threshold" {
     true,
     @gif_decoder_lib.create_rgba_color(0, 0, 0, 0),
   )
-  let color_table = @list.List::from_array([
+  let color_table = @list.of([
     @gif_decoder_lib.create_color_entry(10, 10, 10),
     @gif_decoder_lib.create_color_entry(240, 240, 240),
   ])
-  let indices = @list.List::from_array([b'\x00', b'\x01'])
+  let indices = @list.of([b'\x00', b'\x01'])
   let converted = @gif_decoder_lib.apply_color_table_with_options(
     indices,
     color_table,

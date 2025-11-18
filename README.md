@@ -7,9 +7,11 @@ A comprehensive GIF decoder implemented in [MoonBit](https://www.moonbitlang.com
 * 🖼️ **Complete GIF Parsing** - Parse GIF headers, logical screen descriptors, and all data blocks
 * 🎬 **Animation Support** - Decode animated GIFs with frame timing and disposal methods  
 * 🔍 **LZW Decompression** - Full LZW algorithm implementation for image data decompression
-* 🎨 **Color Table Support** - Handle both global and local color tables with transparency
-* 📊 **Extension Parsing** - Support for Graphic Control, Comment, and Application extensions
-* ⚡ **Efficient Bitstream Reading** - Optimized bit-level data reading utilities
+* 🌊 **Streaming Decoder** - Consume arbitrarily large GIFs chunk‑by‑chunk via `StreamingGifDecoder`
+* 🧮 **GIF Optimization Tools** - `gif_optimizer.mbt` removes duplicate frames, trims palettes, and enforces transparency
+* 🧑‍🎨 **Advanced Transparency Handling** - Customize blending/threshold strategies with `TransparencyOptions`
+* 🧰 **GIF Encoder** - Build brand‑new GIFs (including from RGBA frames) using `gif_encoder.mbt`
+* 🌐 **WebAssembly Bindings** - Ready-to-export helpers inside `wasm_bindings.mbt`
 * 🧪 **Comprehensive Testing** - Full test coverage with snapshot testing
 * 📈 **Performance Analysis** - Built-in benchmarking and structure analysis tools
 
@@ -78,9 +80,21 @@ parse_image_descriptor(data: Bytes, offset: Int) -> Result[(ImageDesc, Int), Str
 // LZW decompression  
 decode_lzw(data: @list.List[Byte], min_code_size: Int) -> Result[@list.List[Byte], GifError]
 
-// Utility functions
-to_u16_le(low: Byte, high: Byte) -> Int
-analyze_gif_structure(data: Bytes) -> Result[String, String]
+// GIF encoder + optimizer
+GifEncoder::new(options: GifEncoderOptions) -> GifEncoder
+GifEncoder::add_frame(frame: GifFrameInput) -> Result[Unit, GifError]
+GifEncoder::build() -> Result[Bytes, GifError]
+create_frame_from_rgba(width: Int, height: Int, left: Int, top: Int, pixels: Array[RgbaColor], delay: Int, disposal: Int) -> Result[GifFrameInput, GifError]
+optimize_gif(gif: Gif, options: GifOptimizationOptions) -> (Gif, OptimizationReport)
+
+// Streaming decode
+StreamingGifDecoder::new(options: StreamingDecoderOptions) -> StreamingGifDecoder
+StreamingGifDecoder::process_chunk(chunk: Bytes) -> Result[@list.List[StreamingEvent], GifError]
+
+// WebAssembly helpers
+wasm_decode_gif_summary(data: Bytes) -> Result[String, String]
+wasm_stream_decode(data: Bytes, chunk_size: Int) -> Result[Int, String]
+wasm_encode_single_frame(pixels: Array[RgbaColor], width: Int, height: Int) -> Result[Bytes, String]
 ```
 
 ### Data Types
@@ -97,6 +111,25 @@ struct GraphicControlExtension { ... }
 struct ImageFrame { width: Int, height: Int, pixels: Array[RgbaColor] }
 enum DisposalMethod { None, DoNotDispose, RestoreToBackground, RestoreToPrevious }
 ```
+
+## 🧑‍🏭 GIF Optimization & Encoding
+
+- **Optimizer (`gif_optimizer.mbt`)** – invoke `optimize_gif` with `GifOptimizationOptions` to drop duplicate frames, trim local palettes, and enforce background transparency. Inspect the returned `OptimizationReport` for counts.
+- **Encoder (`gif_encoder.mbt`)** – create frames via `create_frame_from_rgba` or by supplying pre-indexed data, feed them to `GifEncoder`, and `build()` to obtain fully-formed GIF bytes. Works seamlessly with the optimizer for round-tripping.
+
+## 🌊 Streaming & Transparency
+
+- **Streaming decoder** – `StreamingGifDecoder::process_chunk` produces structured `StreamingEvent`s while keeping memory usage bounded, unlocking huge-file workflows.
+- **Advanced transparency** – `TransparencyOptions` allow binary / threshold / brightness-preserving strategies, background preservation, and fallback colors. Use `render_all_frames_with_options` or `render_frame_to_canvas_with_options` to control blending precisely.
+
+## 🕸️ WebAssembly Target
+
+- WASM-friendly helpers live in `wasm_bindings.mbt` (`wasm_decode_gif_summary`, `wasm_stream_decode`, `wasm_encode_single_frame`, …) and only expose `Bytes`/primitive arguments.
+- Build for WebAssembly GC:
+  ```bash
+  moon build src/lib -target wasm-gc -entry wasm_bindings
+  ```
+- The resulting module exports the binding functions automatically, ready for JS/wasmtime hosts.
 
 ## 🧪 Testing
 
@@ -206,8 +239,8 @@ Typical performance characteristics:
 - [x] Animation frame extraction
 - [x] Extension block parsing
 - [x] Comprehensive test suite
-- [ ] **WebAssembly build target**
-- [ ] **Advanced transparency handling**
-- [ ] **GIF optimization tools**
-- [ ] **Streaming decoder for large files**
-- [ ] **GIF creation/encoding support**
+- [x] **WebAssembly build target**
+- [x] **Advanced transparency handling**
+- [x] **GIF optimization tools**
+- [x] **Streaming decoder for large files**
+- [x] **GIF creation/encoding support**

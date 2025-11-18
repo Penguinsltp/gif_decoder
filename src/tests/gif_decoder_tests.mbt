@@ -17,6 +17,59 @@ test "基本GIF解码测试" {
 }
 
 ///|
+test "parse_gif 正确解析 Gif 结构" {
+  let data = @gif_decoder_lib.create_test_gif_data()
+  let parse_options = @gif_decoder_lib.create_parse_options(false, false, None)
+  match @gif_decoder_lib.parse_gif_with_options(data, parse_options) {
+    Ok(gif) => {
+      inspect(gif.header.version, content="89a")
+      inspect(gif.logical_screen.screen_width, content="16")
+      inspect(gif.logical_screen.screen_height, content="16")
+      match gif.global_color_table {
+        Some(table) => inspect(table.length(), content="2")
+        None => inspect("missing table", content="Should have table")
+      }
+      inspect(gif.data_blocks.length(), content="2")
+    }
+    Err(err) => inspect(err, content="Should not fail")
+  }
+}
+
+///|
+test "streaming decoder 产出正确事件流" {
+  let data = @gif_decoder_lib.create_test_gif_data()
+  let decoder = @gif_decoder_lib.StreamingGifDecoder::new(
+    @gif_decoder_lib.default_streaming_options(),
+  )
+  let first_chunk = slice_bytes(data, 0, 5)
+  match decoder.process_chunk(first_chunk) {
+    Ok(events) => inspect(events.length(), content="0")
+    Err(err) => inspect(err, content="Should not fail on first chunk")
+  }
+  let second_chunk = slice_bytes(data, 5, data.length() - 5)
+  match decoder.process_chunk(second_chunk) {
+    Ok(events) => {
+      let arr = events.to_array()
+      inspect(arr.length() >= 1, content="true")
+      match arr[0] {
+        Header(header, _) => inspect(header.version, content="89a")
+        _ => inspect("missing header", content="First event should be header")
+      }
+    }
+    Err(err) => inspect(err, content="Streaming decode should succeed")
+  }
+}
+
+///|
+fn slice_bytes(data : Bytes, start : Int, len : Int) -> Bytes {
+  let array : Array[Byte] = []
+  for i = 0; i < len && start + i < data.length(); i = i + 1 {
+    array.push(data[start + i])
+  }
+  Bytes::from_array(array)
+}
+
+///|
 test "GIF87a基础解码测试" {
   let test_data = Bytes::from_array([
     71, 73, 70, 56, 55, 97, // "GIF87a"

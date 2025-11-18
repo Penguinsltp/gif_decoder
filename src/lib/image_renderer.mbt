@@ -19,6 +19,58 @@ pub struct ImageFrame {
 } derive(Show)
 
 ///|
+/// 高级透明度处理策略
+pub enum TransparencyStrategy {
+  Binary // 传统 GIF 透明度，只有 0 或 255
+  AlphaThreshold // 根据阈值裁剪透明度
+  PreserveAlpha // 尽可能保留原始 alpha
+} derive(Show, Eq)
+
+///|
+/// 透明度配置
+pub struct TransparencyOptions {
+  strategy : TransparencyStrategy
+  alpha_threshold : Int
+  preserve_background : Bool
+  fallback_color : RgbaColor
+} derive(Show)
+
+///|
+pub fn default_transparency_options() -> TransparencyOptions {
+  {
+    strategy: Binary,
+    alpha_threshold: 128,
+    preserve_background: true,
+    fallback_color: { red: 0, green: 0, blue: 0, alpha: 0 },
+  }
+}
+
+///|
+pub fn create_transparency_options(
+  strategy : TransparencyStrategy,
+  alpha_threshold : Int,
+  preserve_background : Bool,
+  fallback_color : RgbaColor,
+) -> TransparencyOptions {
+  { strategy, alpha_threshold, preserve_background, fallback_color }
+}
+
+///|
+pub fn transparency_strategy_binary() -> TransparencyStrategy {
+  Binary
+}
+
+///|
+pub fn transparency_strategy_alpha_threshold() -> TransparencyStrategy {
+  AlphaThreshold
+}
+
+///|
+pub fn transparency_strategy_preserve_alpha() -> TransparencyStrategy {
+  PreserveAlpha
+}
+
+///|
 /// 动画帧的处理方法
 pub enum DisposalMethod {
   None
@@ -55,7 +107,7 @@ pub fn Canvas::new(width : Int, height : Int, background : RgbaColor) -> Canvas 
 
 ///|
 /// 将画布清除为背景色
-pub fn clear_to_background(self : Canvas) -> Unit {
+pub fn Canvas::clear_to_background(self : Canvas) -> Unit {
   for i = 0; i < self.pixels.length(); i = i + 1 {
     self.pixels[i] = self.background_color
   }
@@ -63,14 +115,13 @@ pub fn clear_to_background(self : Canvas) -> Unit {
 
 ///|
 /// 为处理方法 3 保存当前画布状态
-pub fn save_previous_frame(self : Canvas) -> Unit {
+pub fn Canvas::save_previous_frame(self : Canvas) -> Unit {
   let saved = Array::make(self.pixels.length(), self.background_color)
   for i = 0; i < self.pixels.length(); i = i + 1 {
     saved[i] = self.pixels[i]
   }
   self.previous_frame = Some(saved)
 }
-
 
 ///|
 /// 处理图形控制扩展
@@ -158,7 +209,7 @@ pub fn apply_disposal_method_to_canvas(
 
 ///|
 /// 将处理方法应用到画布
-pub fn apply_disposal_method(
+pub fn Canvas::apply_disposal_method(
   self : Canvas,
   disposal_method : Int,
   frame_left : Int,
@@ -232,14 +283,29 @@ pub fn apply_color_table(
   color_table : @list.List[ColorTableEntry],
   transparent_index : Int?,
 ) -> @list.List[RgbaColor] {
+  apply_color_table_with_options(
+    indices,
+    color_table,
+    transparent_index,
+    default_transparency_options(),
+  )
+}
+
+///|
+/// 支持高级透明度策略的调色板应用
+pub fn apply_color_table_with_options(
+  indices : @list.List[Byte],
+  color_table : @list.List[ColorTableEntry],
+  transparent_index : Int?,
+  options : TransparencyOptions,
+) -> @list.List[RgbaColor] {
   let color_array = color_table.to_array()
   let mut result = @list.new()
   for byte_val in indices {
     let index = byte_val.to_int()
-    let alpha = match transparent_index {
-      Some(trans_idx) => if index == trans_idx { 0 } else { 255 }
-      None => 255
-    }
+    let alpha = compute_alpha_for_index(
+      index, transparent_index, options, color_array,
+    )
     if index >= 0 && index < color_array.length() {
       let color_entry = color_array[index]
       let rgba = color_entry_to_rgba(color_entry, alpha)
@@ -250,6 +316,56 @@ pub fn apply_color_table(
     }
   }
   result.rev()
+}
+
+///|
+fn compute_alpha_for_index(
+  index : Int,
+  transparent_index : Int?,
+  options : TransparencyOptions,
+  color_array : Array[ColorTableEntry],
+) -> Int {
+  if index < 0 || index >= color_array.length() {
+    return 0
+  }
+  let entry = color_array[index]
+  let is_transparent = match transparent_index {
+    Some(trans_idx) => index == trans_idx
+    None => false
+  }
+  if is_transparent {
+    return 0
+  }
+  if options.preserve_background &&
+    entry.red == options.fallback_color.red &&
+    entry.green == options.fallback_color.green &&
+    entry.blue == options.fallback_color.blue {
+    return 0
+  }
+  match options.strategy {
+    Binary => 255
+    AlphaThreshold => {
+      let brightness = compute_brightness(entry)
+      if brightness >= options.alpha_threshold {
+        255
+      } else {
+        0
+      }
+    }
+    PreserveAlpha => compute_brightness(entry)
+  }
+}
+
+///|
+fn compute_brightness(entry : ColorTableEntry) -> Int {
+  let value = (entry.red * 299 + entry.green * 587 + entry.blue * 114) / 1000
+  if value < 0 {
+    0
+  } else if value > 255 {
+    255
+  } else {
+    value
+  }
 }
 
 ///|
@@ -272,16 +388,34 @@ pub fn render_frame_to_canvas(
   color_table : @list.List[ColorTableEntry],
   transparent_index : Int?,
 ) -> Result[Unit, GifError] {
+  render_frame_to_canvas_with_options(
+    canvas,
+    image_data,
+    color_table,
+    transparent_index,
+    default_transparency_options(),
+  )
+}
+
+///|
+pub fn render_frame_to_canvas_with_options(
+  canvas : Canvas,
+  image_data : ImageData,
+  color_table : @list.List[ColorTableEntry],
+  transparent_index : Int?,
+  transparency : TransparencyOptions,
+) -> Result[Unit, GifError] {
   let descriptor = image_data.descriptor
 
   // 验证图像尺寸
   if descriptor.width <= 0 || descriptor.height <= 0 {
     return Err(InvalidFormat)
   }
-  let colored_pixels = apply_color_table(
+  let colored_pixels = apply_color_table_with_options(
     image_data.image_data,
     color_table,
     transparent_index,
+    transparency,
   )
   let pixel_array = colored_pixels.to_array()
 
@@ -381,6 +515,25 @@ pub fn create_frame(
   canvas_width : Int,
   canvas_height : Int,
 ) -> Result[ImageFrame, GifError] {
+  create_frame_with_options(
+    image_data,
+    global_color_table,
+    graphic_control,
+    canvas_width,
+    canvas_height,
+    default_transparency_options(),
+  )
+}
+
+///|
+pub fn create_frame_with_options(
+  image_data : ImageData,
+  global_color_table : @list.List[ColorTableEntry]?,
+  graphic_control : GraphicControlExtension?,
+  canvas_width : Int,
+  canvas_height : Int,
+  transparency : TransparencyOptions,
+) -> Result[ImageFrame, GifError] {
   // 验证画布尺寸
   if canvas_width <= 0 || canvas_height <= 0 {
     return Err(InvalidFormat)
@@ -412,7 +565,9 @@ pub fn create_frame(
   let background = { red: 0, green: 0, blue: 0, alpha: 0 }
   let canvas = Canvas::new(canvas_width, canvas_height, background)
   match
-    render_frame_to_canvas(canvas, image_data, color_table, transparent_index) {
+    render_frame_to_canvas_with_options(
+      canvas, image_data, color_table, transparent_index, transparency,
+    ) {
     Ok(_) => ()
     Err(e) => return Err(e)
   }
@@ -450,7 +605,7 @@ pub fn CanvasRenderer::new(
 
 ///|
 /// 使用正确的处理方法渲染帧
-pub fn render_frame_with_disposal(
+pub fn CanvasRenderer::render_frame_with_disposal(
   self : CanvasRenderer,
   frame : ImageFrame,
   image_descriptor : ImageDescriptor,
@@ -507,13 +662,23 @@ pub fn render_frame_with_disposal(
 
 ///|
 /// 获取当前画布像素
-pub fn get_canvas_pixels(self : CanvasRenderer) -> Array[RgbaColor] {
+pub fn CanvasRenderer::get_canvas_pixels(
+  self : CanvasRenderer,
+) -> Array[RgbaColor] {
   self.canvas.pixels
 }
 
 ///|
 /// 从 GIF 数据渲染所有帧，正确处理处置方法
 pub fn render_all_frames(gif : Gif) -> Result[@list.List[ImageFrame], GifError] {
+  render_all_frames_with_options(gif, default_transparency_options())
+}
+
+///|
+pub fn render_all_frames_with_options(
+  gif : Gif,
+  transparency : TransparencyOptions,
+) -> Result[@list.List[ImageFrame], GifError] {
   let mut frames = @list.new()
   let mut current_graphic_control : GraphicControlExtension? = None
   let canvas_width = gif.logical_screen.screen_width
@@ -530,12 +695,13 @@ pub fn render_all_frames(gif : Gif) -> Result[@list.List[ImageFrame], GifError] 
         }
       Image(image_data) =>
         match
-          create_frame(
+          create_frame_with_options(
             image_data,
             gif.global_color_table,
             current_graphic_control,
             canvas_width,
             canvas_height,
+            transparency,
           ) {
           Ok(frame) => {
             frames = @list.cons(frame, frames)

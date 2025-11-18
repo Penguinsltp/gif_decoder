@@ -437,7 +437,7 @@ pub fn test_all_type_constructions() -> Result[String, GifError] {
     transparent_color_index: 0,
   }
   let comment = CommentExtension::{
-    comment_data: @list.of([b'T', b'e', b's', b't']),
+    comment_data: @list.from_array([b'T', b'e', b's', b't']),
   }
   let plain_text = PlainTextExtension::{
     text_grid_left_position: 10,
@@ -448,16 +448,16 @@ pub fn test_all_type_constructions() -> Result[String, GifError] {
     character_cell_height: 12,
     text_foreground_color_index: 1,
     text_background_color_index: 0,
-    plain_text_data: @list.of([b'H', b'i']),
+    plain_text_data: @list.from_array([b'H', b'i']),
   }
   let app = ApplicationExtension::{
     application_identifier: "NETSCAPE",
     application_auth_code: "2.0",
-    application_data: @list.of([b'1', b'0']),
+    application_data: @list.from_array([b'1', b'0']),
   }
 
   // 测试所有数据块
-  let data_blocks = @list.of([
+  let data_blocks = @list.List::from_array([
     Extension(GraphicControl(gce)),
     Extension(Comment(comment)),
     Extension(PlainText(plain_text)),
@@ -476,7 +476,7 @@ pub fn test_all_type_constructions() -> Result[String, GifError] {
   }
 
   // 测试所有错误类型
-  let basic_errors = @list.of([
+  let basic_errors = @list.List::from_array([
     InvalidHeader,
     InvalidLogicalScreen,
     InvalidColorTable,
@@ -490,7 +490,7 @@ pub fn test_all_type_constructions() -> Result[String, GifError] {
     UnexpectedEndOfFile,
     InvalidBlockSize(99),
   ])
-  let detailed_errors = @list.of([
+  let detailed_errors = @list.List::from_array([
     InvalidSignature("BAD"),
     UnsupportedVersion("90a"),
     InvalidBlockSize(999),

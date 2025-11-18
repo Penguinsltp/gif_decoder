@@ -28,7 +28,7 @@ fn min(a : Int, b : Int) -> Int {
 }
 
 ///|
-pub fn read_bits(self : BitReader, n : Int) -> (BitReader, Int?) {
+pub fn BitReader::read_bits(self : BitReader, n : Int) -> (BitReader, Int?) {
   if n <= 0 || n > 16 {
     return (self, None)
   }

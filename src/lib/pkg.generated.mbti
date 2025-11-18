@@ -12,11 +12,13 @@ let application_extension_label : Byte
 
 fn apply_color_table(@list.List[Byte], @list.List[ColorTableEntry], Int?) -> @list.List[RgbaColor]
 
-fn apply_disposal_method(Canvas, Canvas?, Int) -> Canvas
+fn apply_color_table_with_options(@list.List[Byte], @list.List[ColorTableEntry], Int?, TransparencyOptions) -> @list.List[RgbaColor]
 
 fn apply_disposal_method_to_canvas(Canvas, Canvas?, DisposalMethod, Int, Int, Int, Int) -> Canvas
 
 fn apply_graphic_control(Canvas, GraphicControlExtension, @list.List[Byte], @list.List[ColorTableEntry], ImageDescriptor) -> Result[Canvas, GifError]
+
+fn array_bytes_to_list(Array[Byte]) -> @list.List[Byte]
 
 fn bytes_to_string(Bytes, Int, Int) -> String
 
@@ -38,15 +40,25 @@ fn create_disposal_method(Int) -> DisposalMethod
 
 fn create_frame(ImageData, @list.List[ColorTableEntry]?, GraphicControlExtension?, Int, Int) -> Result[ImageFrame, GifError]
 
+fn create_frame_from_rgba(Int, Int, Int, Int, Array[RgbaColor], Int, Int) -> Result[GifFrameInput, GifError]
+
+fn create_frame_with_options(ImageData, @list.List[ColorTableEntry]?, GraphicControlExtension?, Int, Int, TransparencyOptions) -> Result[ImageFrame, GifError]
+
 fn create_gif_data_blocks() -> @list.List[GifDataBlock]
+
+fn create_gif_encoder_options(Int, Int, @list.List[ColorTableEntry]?, Int, Int, Int) -> GifEncoderOptions
 
 fn create_gif_header(String) -> GifHeader
 
 fn create_image_data(ImageDesc, @list.List[Byte]) -> ImageData
 
+fn create_parse_options(Bool, Bool, Int?) -> GifParseOptions
+
 fn create_rgba_color(Int, Int, Int, Int) -> RgbaColor
 
 fn create_test_gif_data() -> Bytes
+
+fn create_transparency_options(TransparencyStrategy, Int, Bool, RgbaColor) -> TransparencyOptions
 
 fn decode_gif_basic(Bytes) -> Result[String, String]
 
@@ -55,6 +67,14 @@ fn decode_gif_complete(Bytes) -> Result[String, String]
 fn decode_lzw(@list.List[Byte], Int) -> Result[@list.List[Byte], GifError]
 
 fn decode_lzw_from_array(Array[Int], Int) -> Result[Array[Int], GifError]
+
+fn default_optimization_options() -> GifOptimizationOptions
+
+fn default_parse_options() -> GifParseOptions
+
+fn default_streaming_options() -> StreamingDecoderOptions
+
+fn default_transparency_options() -> TransparencyOptions
 
 let disposal_keep : Int
 
@@ -106,23 +126,51 @@ fn merge_color_tables(@list.List[ColorTableEntry]?, @list.List[ColorTableEntry]?
 
 fn new(@list.List[Byte]) -> BitReader
 
+fn normalize_pixel_data(@list.List[Byte], Int, Bool) -> Result[@list.List[Byte], GifError]
+
+fn optimize_gif(Gif, GifOptimizationOptions) -> (Gif, OptimizationReport)
+
 fn pack_image_packed_field(Bool, Bool, Bool, Int) -> Int
 
 fn pack_logical_screen_packed_field(Bool, Int, Bool, Int) -> Int
 
+fn parse_application_extension_block(Bytes, Int, Bool) -> Result[(ApplicationExtension, Int), GifError]
+
+fn parse_color_table_from_bytes(Bytes, Int, Int) -> Result[(@list.List[ColorTableEntry], Int), GifError]
+
 fn parse_extension_info(Bytes, Int) -> Result[(String, Int), String]
+
+fn parse_gif(Bytes) -> Result[Gif, GifError]
+
+fn parse_gif_header(Bytes) -> Result[GifHeader, GifError]
 
 fn parse_gif_info(Bytes) -> Result[GifInfo, String]
 
+fn parse_gif_with_options(Bytes, GifParseOptions) -> Result[Gif, GifError]
+
 fn parse_global_color_table(Bytes, Int, Int) -> Result[Array[ColorEntry], String]
+
+fn parse_graphic_control_block(Bytes, Int) -> Result[(GraphicControlExtension, Int), GifError]
 
 fn parse_image_descriptor(Bytes, Int) -> Result[(ImageDesc, Int), String]
 
+fn parse_image_descriptor_block(Bytes, Int) -> Result[(ImageDescriptor, Int), GifError]
+
+fn parse_logical_screen_descriptor_block(Bytes) -> Result[(LogicalScreenDescriptor, Int), GifError]
+
+fn parse_plain_text_block(Bytes, Int, Bool) -> Result[(PlainTextExtension, Int), GifError]
+
 let plain_text_label : Byte
+
+fn rebuild_gif(Gif, @list.List[GifDataBlock]) -> Gif
 
 fn render_all_frames(Gif) -> Result[@list.List[ImageFrame], GifError]
 
+fn render_all_frames_with_options(Gif, TransparencyOptions) -> Result[@list.List[ImageFrame], GifError]
+
 fn render_frame_to_canvas(Canvas, ImageData, @list.List[ColorTableEntry], Int?) -> Result[Unit, GifError]
+
+fn render_frame_to_canvas_with_options(Canvas, ImageData, @list.List[ColorTableEntry], Int?, TransparencyOptions) -> Result[Unit, GifError]
 
 fn render_pixels_to_canvas(Canvas, @list.List[RgbaColor], ImageDescriptor) -> Result[Canvas, GifError]
 
@@ -133,6 +181,12 @@ fn to_int8(Byte) -> Int
 fn to_u16_le(Byte, Byte) -> Int
 
 let trailer : Byte
+
+fn transparency_strategy_alpha_threshold() -> TransparencyStrategy
+
+fn transparency_strategy_binary() -> TransparencyStrategy
+
+fn transparency_strategy_preserve_alpha() -> TransparencyStrategy
 
 fn unpack_image_packed_field(Int) -> (Bool, Bool, Bool, Int)
 
@@ -148,6 +202,14 @@ fn validate_image_descriptor(ImageDescriptor) -> Result[Unit, GifError]
 
 fn validate_logical_screen(LogicalScreenDescriptor) -> Result[Unit, GifError]
 
+fn wasm_decode_gif_summary(Bytes) -> Result[String, String]
+
+fn wasm_encode_single_frame(Array[RgbaColor], Int, Int) -> Result[Bytes, String]
+
+fn wasm_optimize_gif(Bytes) -> Result[String, String]
+
+fn wasm_stream_decode(Bytes, Int) -> Result[Int, String]
+
 // Errors
 
 // Types and methods
@@ -160,9 +222,7 @@ fn AnimationController::current_frame(Self) -> ImageFrame?
 fn AnimationController::get_current_pixels(Self) -> Array[RgbaColor]?
 fn AnimationController::is_finished(Self) -> Bool
 fn AnimationController::new(@list.List[ImageFrame], @list.List[ImageDescriptor], Int, Int, Int) -> Self
-fn AnimationController::output(Self, &Logger) -> Unit // from trait `Show`
 fn AnimationController::reset(Self) -> Unit
-fn AnimationController::to_string(Self) -> String // from trait `Show`
 fn AnimationController::update(Self, Int) -> Bool
 impl Show for AnimationController
 
@@ -171,8 +231,6 @@ pub struct AnimationInfo {
   background_color_index : Int
   pixel_aspect_ratio : Int
 }
-fn AnimationInfo::output(Self, &Logger) -> Unit // from trait `Show`
-fn AnimationInfo::to_string(Self) -> String // from trait `Show`
 impl Show for AnimationInfo
 
 pub struct AnimationState {
@@ -183,8 +241,6 @@ pub struct AnimationState {
   loop_count : Int
   renderer : CanvasRenderer?
 }
-fn AnimationState::output(Self, &Logger) -> Unit // from trait `Show`
-fn AnimationState::to_string(Self) -> String // from trait `Show`
 impl Show for AnimationState
 
 pub struct ApplicationExtension {
@@ -192,8 +248,6 @@ pub struct ApplicationExtension {
   application_auth_code : String
   application_data : @list.List[Byte]
 }
-fn ApplicationExtension::output(Self, &Logger) -> Unit // from trait `Show`
-fn ApplicationExtension::to_string(Self) -> String // from trait `Show`
 impl Show for ApplicationExtension
 
 pub struct BitReader {
@@ -215,9 +269,7 @@ pub struct Canvas {
 fn Canvas::apply_disposal_method(Self, Int, Int, Int, Int, Int) -> Unit
 fn Canvas::clear_to_background(Self) -> Unit
 fn Canvas::new(Int, Int, RgbaColor) -> Self
-fn Canvas::output(Self, &Logger) -> Unit // from trait `Show`
 fn Canvas::save_previous_frame(Self) -> Unit
-fn Canvas::to_string(Self) -> String // from trait `Show`
 impl Show for Canvas
 
 pub struct CanvasRenderer {
@@ -227,9 +279,7 @@ pub struct CanvasRenderer {
 }
 fn CanvasRenderer::get_canvas_pixels(Self) -> Array[RgbaColor]
 fn CanvasRenderer::new(Int, Int, RgbaColor) -> Self
-fn CanvasRenderer::output(Self, &Logger) -> Unit // from trait `Show`
 fn CanvasRenderer::render_frame_with_disposal(Self, ImageFrame, ImageDescriptor) -> Result[Unit, GifError]
-fn CanvasRenderer::to_string(Self) -> String // from trait `Show`
 impl Show for CanvasRenderer
 
 pub struct CodeReader {
@@ -246,11 +296,6 @@ pub struct ColorEntry {
   green : Int
   blue : Int
 }
-fn ColorEntry::equal(Self, Self) -> Bool // from trait `Eq`
-#deprecated
-fn ColorEntry::op_equal(Self, Self) -> Bool // from trait `Eq`
-fn ColorEntry::output(Self, &Logger) -> Unit // from trait `Show`
-fn ColorEntry::to_string(Self) -> String // from trait `Show`
 impl Eq for ColorEntry
 impl Show for ColorEntry
 
@@ -259,19 +304,12 @@ pub struct ColorTableEntry {
   green : Int
   blue : Int
 }
-fn ColorTableEntry::equal(Self, Self) -> Bool // from trait `Eq`
-#deprecated
-fn ColorTableEntry::op_equal(Self, Self) -> Bool // from trait `Eq`
-fn ColorTableEntry::output(Self, &Logger) -> Unit // from trait `Show`
-fn ColorTableEntry::to_string(Self) -> String // from trait `Show`
 impl Eq for ColorTableEntry
 impl Show for ColorTableEntry
 
 pub struct CommentExtension {
   comment_data : @list.List[Byte]
 }
-fn CommentExtension::output(Self, &Logger) -> Unit // from trait `Show`
-fn CommentExtension::to_string(Self) -> String // from trait `Show`
 impl Show for CommentExtension
 
 pub enum DetailedGifError {
@@ -284,8 +322,6 @@ pub enum DetailedGifError {
   InvalidDisposalMethod(Int)
   CorruptedSubBlock
 }
-fn DetailedGifError::output(Self, &Logger) -> Unit // from trait `Show`
-fn DetailedGifError::to_string(Self) -> String // from trait `Show`
 impl Show for DetailedGifError
 
 pub enum DisposalMethod {
@@ -294,11 +330,6 @@ pub enum DisposalMethod {
   RestoreToBackground
   RestoreToPrevious
 }
-fn DisposalMethod::equal(Self, Self) -> Bool // from trait `Eq`
-#deprecated
-fn DisposalMethod::op_equal(Self, Self) -> Bool // from trait `Eq`
-fn DisposalMethod::output(Self, &Logger) -> Unit // from trait `Show`
-fn DisposalMethod::to_string(Self) -> String // from trait `Show`
 impl Eq for DisposalMethod
 impl Show for DisposalMethod
 
@@ -308,8 +339,6 @@ pub enum ExtensionType {
   Comment(CommentExtension)
   Application(ApplicationExtension)
 }
-fn ExtensionType::output(Self, &Logger) -> Unit // from trait `Show`
-fn ExtensionType::to_string(Self) -> String // from trait `Show`
 impl Show for ExtensionType
 
 pub struct Gif {
@@ -318,8 +347,6 @@ pub struct Gif {
   global_color_table : @list.List[ColorTableEntry]?
   data_blocks : @list.List[GifDataBlock]
 }
-fn Gif::output(Self, &Logger) -> Unit // from trait `Show`
-fn Gif::to_string(Self) -> String // from trait `Show`
 impl Show for Gif
 
 pub enum GifDataBlock {
@@ -327,9 +354,27 @@ pub enum GifDataBlock {
   Image(ImageData)
   Trailer
 }
-fn GifDataBlock::output(Self, &Logger) -> Unit // from trait `Show`
-fn GifDataBlock::to_string(Self) -> String // from trait `Show`
 impl Show for GifDataBlock
+
+pub struct GifEncoder {
+  options : GifEncoderOptions
+  frames : Array[GifFrameInput]
+}
+fn GifEncoder::add_frame(Self, GifFrameInput) -> Result[Unit, GifError]
+fn GifEncoder::build(Self) -> Result[Bytes, GifError]
+fn GifEncoder::frame_count(Self) -> Int
+fn GifEncoder::new(GifEncoderOptions) -> Self
+impl Show for GifEncoder
+
+pub struct GifEncoderOptions {
+  width : Int
+  height : Int
+  global_color_table : @list.List[ColorTableEntry]?
+  background_color_index : Int
+  pixel_aspect_ratio : Int
+  loop_count : Int
+}
+impl Show for GifEncoderOptions
 
 pub enum GifError {
   InvalidHeader
@@ -345,16 +390,22 @@ pub enum GifError {
   UnexpectedEndOfFile
   InvalidBlockSize(Int)
 }
-fn GifError::output(Self, &Logger) -> Unit // from trait `Show`
-fn GifError::to_string(Self) -> String // from trait `Show`
 impl Show for GifError
+
+pub struct GifFrameInput {
+  descriptor : ImageDescriptor
+  color_indexes : @list.List[Byte]
+  local_color_table : @list.List[ColorTableEntry]?
+  delay_time : Int
+  disposal_method : Int
+  transparent_index : Int?
+}
+impl Show for GifFrameInput
 
 pub struct GifHeader {
   signature : String
   version : String
 }
-fn GifHeader::output(Self, &Logger) -> Unit // from trait `Show`
-fn GifHeader::to_string(Self) -> String // from trait `Show`
 impl Show for GifHeader
 
 pub struct GifInfo {
@@ -368,9 +419,22 @@ pub struct GifInfo {
   bg_color_index : Int
   pixel_aspect_ratio : Int
 }
-fn GifInfo::output(Self, &Logger) -> Unit // from trait `Show`
-fn GifInfo::to_string(Self) -> String // from trait `Show`
 impl Show for GifInfo
+
+pub struct GifOptimizationOptions {
+  remove_duplicate_frames : Bool
+  enforce_transparent_background : Bool
+  prefer_global_palette : Bool
+  shrink_local_palettes : Bool
+}
+impl Show for GifOptimizationOptions
+
+pub struct GifParseOptions {
+  decompress_image_data : Bool
+  strict_mode : Bool
+  max_pixels : Int?
+}
+impl Show for GifParseOptions
 
 pub struct GraphicControlExtension {
   disposal_method : Int
@@ -379,8 +443,6 @@ pub struct GraphicControlExtension {
   delay_time : Int
   transparent_color_index : Int
 }
-fn GraphicControlExtension::output(Self, &Logger) -> Unit // from trait `Show`
-fn GraphicControlExtension::to_string(Self) -> String // from trait `Show`
 impl Show for GraphicControlExtension
 
 pub struct ImageData {
@@ -388,8 +450,6 @@ pub struct ImageData {
   local_color_table : @list.List[ColorTableEntry]?
   image_data : @list.List[Byte]
 }
-fn ImageData::output(Self, &Logger) -> Unit // from trait `Show`
-fn ImageData::to_string(Self) -> String // from trait `Show`
 impl Show for ImageData
 
 pub struct ImageDesc {
@@ -402,8 +462,6 @@ pub struct ImageDesc {
   sorted : Bool
   local_color_table_size : Int
 }
-fn ImageDesc::output(Self, &Logger) -> Unit // from trait `Show`
-fn ImageDesc::to_string(Self) -> String // from trait `Show`
 impl Show for ImageDesc
 
 pub struct ImageDescriptor {
@@ -416,8 +474,6 @@ pub struct ImageDescriptor {
   sort_flag : Bool
   local_color_table_size : Int
 }
-fn ImageDescriptor::output(Self, &Logger) -> Unit // from trait `Show`
-fn ImageDescriptor::to_string(Self) -> String // from trait `Show`
 impl Show for ImageDescriptor
 
 pub struct ImageFrame {
@@ -428,8 +484,6 @@ pub struct ImageFrame {
   disposal_method : Int
   transparent_index : Int?
 }
-fn ImageFrame::output(Self, &Logger) -> Unit // from trait `Show`
-fn ImageFrame::to_string(Self) -> String // from trait `Show`
 impl Show for ImageFrame
 
 pub struct LogicalScreenDescriptor {
@@ -442,8 +496,6 @@ pub struct LogicalScreenDescriptor {
   background_color_index : Int
   pixel_aspect_ratio : Int
 }
-fn LogicalScreenDescriptor::output(Self, &Logger) -> Unit // from trait `Show`
-fn LogicalScreenDescriptor::to_string(Self) -> String // from trait `Show`
 impl Show for LogicalScreenDescriptor
 
 pub struct LzwDecoder {
@@ -466,6 +518,13 @@ pub struct LzwEntry {
   suffix : Byte
 }
 
+pub struct OptimizationReport {
+  removed_frames : Int
+  updated_transparency : Int
+  normalized_palettes : Int
+}
+impl Show for OptimizationReport
+
 pub struct PlainTextExtension {
   text_grid_left_position : Int
   text_grid_top_position : Int
@@ -477,8 +536,6 @@ pub struct PlainTextExtension {
   text_background_color_index : Int
   plain_text_data : @list.List[Byte]
 }
-fn PlainTextExtension::output(Self, &Logger) -> Unit // from trait `Show`
-fn PlainTextExtension::to_string(Self) -> String // from trait `Show`
 impl Show for PlainTextExtension
 
 pub struct RgbaColor {
@@ -487,13 +544,59 @@ pub struct RgbaColor {
   blue : Int
   alpha : Int
 }
-fn RgbaColor::equal(Self, Self) -> Bool // from trait `Eq`
-#deprecated
-fn RgbaColor::op_equal(Self, Self) -> Bool // from trait `Eq`
-fn RgbaColor::output(Self, &Logger) -> Unit // from trait `Show`
-fn RgbaColor::to_string(Self) -> String // from trait `Show`
 impl Eq for RgbaColor
 impl Show for RgbaColor
+
+pub struct StreamingDecoderOptions {
+  decompress_image_data : Bool
+  strict_mode : Bool
+  compact_threshold : Int
+}
+impl Show for StreamingDecoderOptions
+
+pub enum StreamingEvent {
+  Header(GifHeader, LogicalScreenDescriptor)
+  GlobalColorTable(@list.List[ColorTableEntry])
+  GraphicControl(GraphicControlExtension)
+  Comment(CommentExtension)
+  PlainText(PlainTextExtension)
+  Application(ApplicationExtension)
+  Image(ImageData, GraphicControlExtension?)
+  Trailer
+}
+impl Show for StreamingEvent
+
+pub struct StreamingGifDecoder {
+  options : StreamingDecoderOptions
+  mut buffer : Array[Byte]
+  mut consumed : Int
+  mut finished : Bool
+  mut header : GifHeader?
+  mut logical_screen : LogicalScreenDescriptor?
+  mut global_table_emitted : Bool
+  mut pending_graphic_control : GraphicControlExtension?
+}
+fn StreamingGifDecoder::finish(Self) -> Result[Unit, GifError]
+fn StreamingGifDecoder::is_finished(Self) -> Bool
+fn StreamingGifDecoder::new(StreamingDecoderOptions) -> Self
+fn StreamingGifDecoder::process_chunk(Self, Bytes) -> Result[@list.List[StreamingEvent], GifError]
+impl Show for StreamingGifDecoder
+
+pub struct TransparencyOptions {
+  strategy : TransparencyStrategy
+  alpha_threshold : Int
+  preserve_background : Bool
+  fallback_color : RgbaColor
+}
+impl Show for TransparencyOptions
+
+pub enum TransparencyStrategy {
+  Binary
+  AlphaThreshold
+  PreserveAlpha
+}
+impl Eq for TransparencyStrategy
+impl Show for TransparencyStrategy
 
 // Type aliases
 

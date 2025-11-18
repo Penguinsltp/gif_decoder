@@ -298,14 +298,14 @@ pub fn create_gif_data_blocks() -> @list.List[GifDataBlock] {
   }
   let image_data = create_image_data(
     image_desc,
-    @list.of([b'T', b'e', b's', b't']),
+    @list.List::from_array([b'T', b'e', b's', b't']),
   )
   let app_ext = ApplicationExtension::{
     application_identifier: "NETSCAPE",
     application_auth_code: "2.0",
-    application_data: @list.of([b'1', b'0']),
+    application_data: @list.List::from_array([b'1', b'0']),
   }
-  @list.of([Extension(Application(app_ext)), Image(image_data), Trailer])
+  @list.List::from_array([Extension(Application(app_ext)), Image(image_data), Trailer])
 }
 
 ///|

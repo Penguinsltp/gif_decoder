@@ -45,7 +45,10 @@ pub fn LzwDecoder::new(min_code_size : Int) -> LzwDecoder {
 
 ///|
 /// 将字典重置为初始状态
-pub fn reset_dictionary(self : LzwDecoder, min_code_size : Int) -> Unit {
+pub fn LzwDecoder::reset_dictionary(
+  self : LzwDecoder,
+  min_code_size : Int,
+) -> Unit {
   let clear_code = 1 << min_code_size
   let end_code = clear_code + 1
 
@@ -63,7 +66,7 @@ pub fn reset_dictionary(self : LzwDecoder, min_code_size : Int) -> Unit {
 
 ///|
 /// 向字典添加新条目
-pub fn add_to_dictionary(
+pub fn LzwDecoder::add_to_dictionary(
   self : LzwDecoder,
   prefix : Int,
   suffix : Byte,
@@ -83,7 +86,10 @@ pub fn add_to_dictionary(
 
 ///|
 /// 获取给定代码的字符串
-pub fn get_string(self : LzwDecoder, code : Int) -> @list.List[Byte] {
+pub fn LzwDecoder::get_string(
+  self : LzwDecoder,
+  code : Int,
+) -> @list.List[Byte] {
   if code < 0 || code >= self.next_code {
     @list.new()
   } else {
@@ -105,7 +111,7 @@ pub fn get_string(self : LzwDecoder, code : Int) -> @list.List[Byte] {
 
 ///|
 /// 获取给定代码字符串的第一个字符
-pub fn get_first_char(self : LzwDecoder, code : Int) -> Byte {
+pub fn LzwDecoder::get_first_char(self : LzwDecoder, code : Int) -> Byte {
   if code < 0 || code >= self.next_code {
     b'\x00'
   } else {
@@ -142,7 +148,7 @@ pub fn CodeReader::new(data : @list.List[Byte]) -> CodeReader {
 
 ///|
 /// 读取给定位宽的下一个代码（内部使用）
-pub fn read_code(self : CodeReader, code_size : Int) -> Int? {
+pub fn CodeReader::read_code(self : CodeReader, code_size : Int) -> Int? {
   // 确保我们有足够的位
   while self.bit_count < code_size {
     match @list.List::nth(self.data, self.byte_index) {

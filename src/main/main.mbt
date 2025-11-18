@@ -2,27 +2,82 @@
 fn main {
   let args = @sys.get_cli_args()
   if args.length() < 2 {
-    println("🎨 GIF解码器 - 使用说明")
-    println("==================================================")
-    println("用法: moon run src/main <gif文件路径>")
-    println("示例: moon run src/main gif/__Attack.gif")
-    println("      moon run src/main /path/to/your/image.gif")
+    print_usage()
     println("")
-    println(
-      "🔧 如果不提供文件路径，将运行完整的演示程序...",
-    )
-    println("")
-
-    // 运行完整演示
     run_full_demo()
-  } else {
-    let gif_path = args[1]
-    println("🎨 GIF解码器 - 文件分析")
-    println("==================================================")
-
-    // 解析指定的GIF文件
-    analyze_gif_file(gif_path)
+    return
   }
+  let command = args[1]
+  match command {
+    "help" => print_usage()
+    "analyze" =>
+      if args.length() < 3 {
+        println("❌ analyze 需要提供 GIF 文件路径")
+        print_usage()
+      } else {
+        analyze_gif_file(args[2])
+      }
+    "stream" =>
+      if args.length() < 3 {
+        println("❌ stream 需要提供 GIF 文件路径")
+        print_usage()
+      } else {
+        let chunk_size = if args.length() > 3 {
+          parse_positive_int(args[3], 2048)
+        } else {
+          2048
+        }
+        run_stream_decode(args[2], chunk_size)
+      }
+    "optimize" =>
+      if args.length() < 3 {
+        println("❌ optimize 需要提供 GIF 文件路径")
+        print_usage()
+      } else {
+        run_optimize_report(args[2])
+      }
+    "encode-demo" => {
+      let output_path = if args.length() > 2 {
+        args[2]
+      } else {
+        "encoded_demo.gif"
+      }
+      run_encode_demo(output_path)
+    }
+    "summary" =>
+      if args.length() < 3 {
+        println("❌ summary 需要提供 GIF 文件路径")
+        print_usage()
+      } else {
+        let strict_mode = if args.length() > 3 {
+          parse_bool_flag(args[3], true)
+        } else {
+          true
+        }
+        run_parse_summary(args[2], strict_mode)
+      }
+    _ => analyze_gif_file(command)
+  }
+}
+
+///|
+fn print_usage() -> Unit {
+  println("🎨 GIF工具 - 使用说明")
+  println("==================================================")
+  println("用法: moon run src/main <command> [参数]")
+  println("命令列表：")
+  println(
+    "  analyze <gif>            解析并输出详细信息（默认行为）",
+  )
+  println("  stream <gif> [chunk]     以流式方式解析大型 GIF")
+  println(
+    "  optimize <gif>           打印优化统计（去重帧/透明度修复等）",
+  )
+  println("  encode-demo [路径]       运行一个简易编码示例")
+  println("  summary <gif> [strict]   使用 ParseOptions 输出结构摘要")
+  println("  help                     显示本帮助")
+  println("")
+  println("如果直接传入文件路径，将自动执行 analyze 命令。")
 }
 
 ///|
@@ -80,6 +135,249 @@ fn analyze_gif_file(gif_path : String) -> Unit {
     analyze_image_data(gif_data)
   } catch {
     @fs.IOError(msg) => println("❌ 文件读取失败: " + msg)
+  }
+}
+
+///|
+fn run_stream_decode(gif_path : String, chunk_size : Int) -> Unit {
+  println("🌊 流式解析: " + gif_path)
+  match read_file_bytes(gif_path) {
+    Ok(data) => {
+      if data.length() == 0 {
+        println("❌ 文件为空")
+        return
+      }
+      let decoder = @gif_decoder_lib.StreamingGifDecoder::new(
+        @gif_decoder_lib.default_streaming_options(),
+      )
+      let mut processed = 0
+      let mut header_count = 0
+      let mut frame_count = 0
+      let mut extension_count = 0
+      let mut trailer_seen = false
+      let total_chunks = (data.length() + chunk_size - 1) / chunk_size
+      for chunk_index = 0
+          chunk_index < total_chunks
+          chunk_index = chunk_index + 1 {
+        let start = chunk_index * chunk_size
+        let remaining = data.length() - start
+        let take = if remaining < chunk_size { remaining } else { chunk_size }
+        let chunk = slice_bytes(data, start, take)
+        match decoder.process_chunk(chunk) {
+          Ok(events) => {
+            let event_array = events.to_array()
+            for event in event_array {
+              match event {
+                Header(header, screen) => {
+                  header_count = header_count + 1
+                  println(
+                    "   ▶ Header: GIF" +
+                    header.version +
+                    "  " +
+                    screen.screen_width.to_string() +
+                    "×" +
+                    screen.screen_height.to_string(),
+                  )
+                }
+                GlobalColorTable(colors) => {
+                  let color_array = colors.to_array()
+                  println(
+                    "   ▶ 全局颜色表: " +
+                    color_array.length().to_string() +
+                    " 色",
+                  )
+                }
+                GraphicControl(gce) => {
+                  extension_count = extension_count + 1
+                  println(
+                    "   ▶ 图形控制扩展: 延迟 " +
+                    gce.delay_time.to_string() +
+                    ", 透明=" +
+                    (if gce.transparent_color_flag { "是" } else { "否" }),
+                  )
+                }
+                Comment(_) | PlainText(_) | Application(_) =>
+                  extension_count = extension_count + 1
+                Image(image_data, _) => {
+                  frame_count = frame_count + 1
+                  println(
+                    "   ▶ 图像帧 #" +
+                    frame_count.to_string() +
+                    ": " +
+                    image_data.descriptor.width.to_string() +
+                    "×" +
+                    image_data.descriptor.height.to_string(),
+                  )
+                }
+                Trailer => {
+                  trailer_seen = true
+                  println("   ▶ Trailer (解析结束)")
+                }
+              }
+            }
+          }
+          Err(err) => {
+            println("❌ 流式解码失败: " + format_gif_error(err))
+            return
+          }
+        }
+        processed = processed + take
+      }
+      println("")
+      println("✅ 流式解析完成")
+      println("   读取块数: " + total_chunks.to_string())
+      println("   Header 数量: " + header_count.to_string())
+      println("   图像帧数: " + frame_count.to_string())
+      println("   扩展数: " + extension_count.to_string())
+      println(
+        "   Trailer: " +
+        (if trailer_seen { "已检测到" } else { "未出现" }),
+      )
+    }
+    Err(msg) => println("❌ " + msg)
+  }
+}
+
+///|
+fn run_optimize_report(gif_path : String) -> Unit {
+  println("🧹 GIF优化报告: " + gif_path)
+  match read_file_bytes(gif_path) {
+    Ok(data) =>
+      match @gif_decoder_lib.parse_gif(data) {
+        Ok(gif) => {
+          let (optimized, report) = @gif_decoder_lib.optimize_gif(
+            gif,
+            @gif_decoder_lib.default_optimization_options(),
+          )
+          let (orig_frames, orig_ext, orig_trailer) = summarize_blocks(
+            gif.data_blocks,
+          )
+          let (opt_frames, opt_ext, opt_trailer) = summarize_blocks(
+            optimized.data_blocks,
+          )
+          println("   原始图像帧: " + orig_frames.to_string())
+          println("   原始扩展数: " + orig_ext.to_string())
+          println("   原始 Trailer: " + orig_trailer.to_string())
+          println("   优化后图像帧: " + opt_frames.to_string())
+          println("   优化后扩展数: " + opt_ext.to_string())
+          println("   优化后 Trailer: " + opt_trailer.to_string())
+          println("")
+          println(
+            "   ✅ 删除重复帧: " + report.removed_frames.to_string(),
+          )
+          println(
+            "   ✅ 透明度修正: " + report.updated_transparency.to_string(),
+          )
+          println(
+            "   ✅ 颜色表规范化: " +
+            report.normalized_palettes.to_string(),
+          )
+        }
+        Err(err) => println("❌ 解析失败: " + format_gif_error(err))
+      }
+    Err(msg) => println("❌ " + msg)
+  }
+}
+
+///|
+fn run_encode_demo(output_path : String) -> Unit {
+  println("🧪 GIF编码示例")
+  let width = 32
+  let height = 32
+  let total_pixels = width * height
+  let pixels = Array::make(
+    total_pixels,
+    @gif_decoder_lib.create_rgba_color(0, 0, 0, 255),
+  )
+  for y = 0; y < height; y = y + 1 {
+    for x = 0; x < width; x = x + 1 {
+      let idx = y * width + x
+      let color = @gif_decoder_lib.create_rgba_color(
+        x * 8 % 256,
+        y * 8 % 256,
+        (x + y) * 4 % 256,
+        255,
+      )
+      pixels[idx] = color
+    }
+  }
+  match
+    @gif_decoder_lib.create_frame_from_rgba(width, height, 0, 0, pixels, 5, 2) {
+    Ok(frame) => {
+      let options = @gif_decoder_lib.create_gif_encoder_options(
+        width,
+        height,
+        None,
+        0,
+        0,
+        0,
+      )
+      let encoder = @gif_decoder_lib.GifEncoder::new(options)
+      match encoder.add_frame(frame) {
+        Ok(_) => ()
+        Err(err) => {
+          println("❌ 添加帧失败: " + format_gif_error(err))
+          return
+        }
+      }
+      match encoder.build() {
+        Ok(bytes) => {
+          println(
+            "✅ 编码成功，得到 " +
+            bytes.length().to_string() +
+            " 字节的 GIF 数据",
+          )
+          println(
+            "   头部签名: " + @gif_decoder_lib.bytes_to_string(bytes, 0, 6),
+          )
+          println(
+            "   (当前 CLI 仅展示输出，可将该字节数组写入 " +
+            output_path +
+            " 以保存文件)",
+          )
+        }
+        Err(err) => println("❌ 编码失败: " + format_gif_error(err))
+      }
+    }
+    Err(err) => println("❌ 创建帧失败: " + format_gif_error(err))
+  }
+}
+
+///|
+fn run_parse_summary(gif_path : String, strict_mode : Bool) -> Unit {
+  println("📘 解析摘要: " + gif_path)
+  match read_file_bytes(gif_path) {
+    Ok(data) => {
+      let options = @gif_decoder_lib.create_parse_options(
+        true,
+        strict_mode,
+        None,
+      )
+      match @gif_decoder_lib.parse_gif_with_options(data, options) {
+        Ok(gif) => {
+          println(
+            "   画布: " +
+            gif.logical_screen.screen_width.to_string() +
+            "×" +
+            gif.logical_screen.screen_height.to_string(),
+          )
+          println(
+            "   全局颜色表: " +
+            (if gif.logical_screen.global_color_table_flag {
+              "是"
+            } else {
+              "否"
+            }),
+          )
+          let (frames, extensions, trailers) = summarize_blocks(gif.data_blocks)
+          println("   图像帧数量: " + frames.to_string())
+          println("   扩展数量: " + extensions.to_string())
+          println("   Trailer 个数: " + trailers.to_string())
+        }
+        Err(err) => println("❌ 解析失败: " + format_gif_error(err))
+      }
+    }
+    Err(msg) => println("❌ " + msg)
   }
 }
 
@@ -955,4 +1253,114 @@ fn test_byte_order() -> Unit {
       ")",
     )
   }
+}
+
+///|
+fn read_file_bytes(path : String) -> Result[Bytes, String] {
+  if !@fs.path_exists(path) {
+    return Err("文件不存在: " + path)
+  }
+  try {
+    if !@fs.is_file(path) {
+      return Err("指定路径不是文件: " + path)
+    }
+  } catch {
+    @fs.IOError(msg) => return Err("无法访问文件: " + msg)
+  }
+  Ok(@fs.read_file_to_bytes(path)) catch {
+    @fs.IOError(msg) => Err("文件读取失败: " + msg)
+  }
+}
+
+///|
+fn slice_bytes(data : Bytes, start : Int, len : Int) -> Bytes {
+  let buffer : Array[Byte] = []
+  for i = 0; i < len && start + i < data.length(); i = i + 1 {
+    buffer.push(data[start + i])
+  }
+  Bytes::from_array(buffer)
+}
+
+///|
+fn parse_positive_int(value : String, default_value : Int) -> Int {
+  let chars = value.to_array()
+  if chars.length() == 0 {
+    return default_value
+  }
+  let mut result = 0
+  for ch in chars {
+    if ch < '0' || ch > '9' {
+      return default_value
+    }
+    result = result * 10 + (ch.to_int() - '0'.to_int())
+  }
+  if result > 0 {
+    result
+  } else {
+    default_value
+  }
+}
+
+///|
+fn parse_bool_flag(value : String, default_value : Bool) -> Bool {
+  if value == "true" ||
+    value == "TRUE" ||
+    value == "1" ||
+    value == "yes" ||
+    value == "YES" {
+    true
+  } else if value == "false" ||
+    value == "FALSE" ||
+    value == "0" ||
+    value == "no" ||
+    value == "NO" {
+    false
+  } else {
+    default_value
+  }
+}
+
+///|
+fn format_gif_error(err : @gif_decoder_lib.GifError) -> String {
+  match err {
+    @gif_decoder_lib.GifError::InvalidHeader => "InvalidHeader".to_string()
+    @gif_decoder_lib.GifError::InvalidLogicalScreen =>
+      "InvalidLogicalScreen".to_string()
+    @gif_decoder_lib.GifError::InvalidColorTable =>
+      "InvalidColorTable".to_string()
+    @gif_decoder_lib.GifError::InvalidImageDescriptor =>
+      "InvalidImageDescriptor".to_string()
+    @gif_decoder_lib.GifError::InvalidExtension =>
+      "InvalidExtension".to_string()
+    @gif_decoder_lib.GifError::InvalidFormat => "InvalidFormat".to_string()
+    @gif_decoder_lib.GifError::LzwDecodingError =>
+      "LzwDecodingError".to_string()
+    @gif_decoder_lib.GifError::NoColorTable => "NoColorTable".to_string()
+    @gif_decoder_lib.GifError::UnsupportedFeature =>
+      "UnsupportedFeature".to_string()
+    @gif_decoder_lib.GifError::DataCorrupted => "DataCorrupted".to_string()
+    @gif_decoder_lib.GifError::UnexpectedEndOfFile =>
+      "UnexpectedEndOfFile".to_string()
+    @gif_decoder_lib.GifError::InvalidBlockSize(size) =>
+      "InvalidBlockSize(".to_string() + size.to_string() + ")"
+  }
+}
+
+///|
+fn summarize_blocks(
+  blocks : @list.List[@gif_decoder_lib.GifDataBlock],
+) -> (Int, Int, Int) {
+  let mut frame_count = 0
+  let mut extension_count = 0
+  let mut trailer_count = 0
+  for block in blocks {
+    match block {
+      @gif_decoder_lib.GifDataBlock::Image(_) => frame_count = frame_count + 1
+      @gif_decoder_lib.GifDataBlock::Extension(_) =>
+        extension_count = extension_count + 1
+      @gif_decoder_lib.GifDataBlock::Trailer =>
+        trailer_count = trailer_count + 1
+    }
+  }
+  (frame_count, extension_count, trailer_count)
 }

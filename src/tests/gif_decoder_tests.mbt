@@ -548,7 +548,9 @@ test "测试通过解析获得的图像描述符功能" {
       inspect(desc.local_color_table_size, content="16")
 
       // 测试创建ImageData
-      let test_pixel_data = @list.from_array([b'P', b'I', b'X', b'E', b'L', b'S'])
+      let test_pixel_data = @list.from_array([
+        b'P', b'I', b'X', b'E', b'L', b'S',
+      ])
       let image_data = @gif_decoder_lib.create_image_data(desc, test_pixel_data)
       inspect(image_data.descriptor.width, content="200")
       inspect(image_data.descriptor.height, content="150")

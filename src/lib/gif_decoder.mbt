@@ -305,7 +305,11 @@ pub fn create_gif_data_blocks() -> @list.List[GifDataBlock] {
     application_auth_code: "2.0",
     application_data: @list.List::from_array([b'1', b'0']),
   }
-  @list.List::from_array([Extension(Application(app_ext)), Image(image_data), Trailer])
+  @list.List::from_array([
+    Extension(Application(app_ext)),
+    Image(image_data),
+    Trailer,
+  ])
 }
 
 ///|
